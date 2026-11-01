@@ -33,25 +33,27 @@ jobs:
   codestyle:
     name: Code Style checks
     runs-on: [self-hosted, linux, riftal]
+    # A clean run takes about a minute. A hang fails the job instead of
+    # holding a shared runner while every other check queues behind it.
+    timeout-minutes: 10
     strategy:
       fail-fast: false
+    env:
+      # The runners have no PHP and no sudo to install one, so the fixer runs
+      # from its own image. The workspace persists between runs and the image
+      # runs as root, so the tree is mounted read-only and the cache is off.
+      PHP_CS_FIXER_IMAGE: ghcr.io/php-cs-fixer/php-cs-fixer:3.75.0-php8.3@sha256:3da587bc3019ebbfc8c917e512471a721ebbc634bbb2fcf2646ab4b6bf282224
 
     steps:
       - uses: actions/checkout@v7
 
-      - name: Setup PHP and tools
-        uses: shivammathur/setup-php@2.37.2
-        with:
-          php-version: 8.3
-          tools: php-cs-fixer:3.75
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
       - name: Keep temp files off the shared /tmp
         uses: ./.github/actions/runner-temp
+        with:
+          php: false
 
       - name: Run PHP-CS-Fixer
-        run: php-cs-fixer fix --dry-run --diff --ansi
+        run: docker run --rm -m 1g --cpus 1 -v "$GITHUB_WORKSPACE:/code:ro" -w /code "$PHP_CS_FIXER_IMAGE" fix --dry-run --diff --ansi --using-cache=no
 
   shellcheck:
     name: ShellCheck
@@ -134,17 +136,20 @@ jobs:
   translations:
     name: Translation checks
     runs-on: [self-hosted, linux, riftal]
+    # A clean run takes under a minute.
+    timeout-minutes: 5
+    env:
+      # The runners have no PHP, so the check runs from this image with the
+      # workspace mounted read-only, as in codestyle.
+      PHP_IMAGE: php:8.3-cli-alpine@sha256:86a7a8f46bbf73120a19cf72246f606b6de9aaa84a00971c25d187fbae44c211
 
     steps:
       - uses: actions/checkout@v7
 
-      - name: Setup PHP
-        uses: shivammathur/setup-php@2.37.2
-        with:
-          php-version: 8.3
-
       - name: Keep temp files off the shared /tmp
         uses: ./.github/actions/runner-temp
+        with:
+          php: false
 
       # Each fetched copy is cached under its content hash once it has passed
       # verification. When the fetch fails, the newest cached copy stands in
@@ -166,7 +171,7 @@ jobs:
           fail-on-cache-miss: true
 
       - name: Verify translations
-        run: php .github/workflows/verify-translations.php resources/translations mojang-lang/en_US.lang
+        run: docker run --rm -m 1g --cpus 1 -v "$GITHUB_WORKSPACE:/repo:ro" -w /repo "$PHP_IMAGE" php .github/workflows/verify-translations.php resources/translations mojang-lang/en_US.lang
 
       - name: Look up the fetched en_US.lang in the cache
         id: mojang-cached
@@ -217,4 +222,4 @@ jobs:
             exit 1
           fi
           echo "Restored $MATCHED_KEY"
-          php .github/workflows/verify-translations.php resources/translations mojang-lang/en_US.lang
+          docker run --rm -m 1g --cpus 1 -v "$GITHUB_WORKSPACE:/repo:ro" -w /repo "$PHP_IMAGE" php .github/workflows/verify-translations.php resources/translations mojang-lang/en_US.lang
