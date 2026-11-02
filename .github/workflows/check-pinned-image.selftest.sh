@@ -35,11 +35,12 @@ fixture() {
   cat > "$DIR/$1.yml" <<'EOF'
 jobs:
   build:
+    runs-on: [self-hosted, linux, riftal]
     steps:
     - id: build
       uses: docker/build-push-action@v7.3.0
       with:
-        tags: local-pocketmine-mp
+        tags: local-pocketmine-mp:run-${{ github.run_id }}
     - env:
         BUILT_ID: ${{ steps.build.outputs.imageid }}
       run: echo "IMAGE_ID=$BUILT_ID" >> "$GITHUB_ENV"
@@ -77,6 +78,34 @@ done
 
 fixture minimal ''
 expect 0 minimal "$DIR/minimal.yml"
+
+# CI's pull_request runs build on the daemon every rig boots from, so its
+# build must never take the bare name (#274).
+CI="$HERE/docker-image-ci.yml"
+for PAIR in bare=local-pocketmine-mp latest=local-pocketmine-mp:latest \
+  scoped-and-bare=local-pocketmine-mp:pr-7,local-pocketmine-mp; do
+  NAME="ci-build-tag-${PAIR%%=*}"
+  sed "s|^\( *tags: \)local-pocketmine-mp:.*|\1${PAIR#*=}|" "$CI" > "$DIR/$NAME.yml"
+  expect 1 "$NAME" "$DIR/$NAME.yml"
+done
+
+sed 's|tags: local-pocketmine-mp:.*|tags: local-pocketmine-mp|' "$DIR/minimal.yml" > "$DIR/bare-build-tag-self-hosted.yml"
+expect 1 bare-build-tag-self-hosted "$DIR/bare-build-tag-self-hosted.yml"
+
+sed 's|runs-on: .*|runs-on: ubuntu-22.04|' "$DIR/bare-build-tag-self-hosted.yml" > "$DIR/bare-build-tag-hosted.yml"
+expect 0 bare-build-tag-hosted "$DIR/bare-build-tag-hosted.yml"
+
+# One job on the shared daemon is enough to refuse the bare tag, even when a
+# later job runs on a hosted runner.
+printf '  other:\n    runs-on: ubuntu-22.04\n' | cat "$DIR/bare-build-tag-self-hosted.yml" - > "$DIR/bare-build-tag-self-hosted-and-hosted.yml"
+expect 1 bare-build-tag-self-hosted-and-hosted "$DIR/bare-build-tag-self-hosted-and-hosted.yml"
+
+sed 's|runs-on: .*|runs-on: ${{ matrix.runner }}|' "$DIR/bare-build-tag-self-hosted.yml" > "$DIR/bare-build-tag-runner-expression.yml"
+expect 1 bare-build-tag-runner-expression "$DIR/bare-build-tag-runner-expression.yml"
+
+# An expression that can yield the bare name is refused wherever it runs.
+sed -e 's|runs-on: .*|runs-on: ubuntu-22.04|' -e "s|tags: local-pocketmine-mp:.*|tags: \${{ github.event_name == 'push' \&\& 'local-pocketmine-mp' \|\| 'local-pocketmine-mp:ci' }}|" "$DIR/minimal.yml" > "$DIR/build-tag-expression.yml"
+expect 1 build-tag-expression "$DIR/build-tag-expression.yml"
 
 fixture comments-mention-bare-tag '    # docker run --rm local-pocketmine-mp true
         # docker run --rm local-pocketmine-mp is what another run rebuilds'
