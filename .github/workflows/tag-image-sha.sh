@@ -1,10 +1,12 @@
 #!/usr/bin/env bash
-# Gives the image this run built a second tag, <repository>:<full commit sha>,
+# Gives the image this run built two more tags: <repository>:<full commit sha>,
 # so riftal-infra's CI can run one exact core build and never the moving bare
-# tag (riftal-infra#363). Only a push to riftal tags: a pull request head is
-# code no one has approved, and a sha tag from one would let a pin point at it.
-# Every other run still resolves and checks the image, so each pull_request
-# run proves the path a push takes, short of the tag itself.
+# tag (riftal-infra#363), and the bare <repository>, which every rig and
+# bot-proofs boot (#274). Only a push to riftal tags: a pull request head is
+# code no one has approved, a sha tag from one would let a pin point at it, and
+# the bare tag from one would put every rig on it. Every other run still
+# resolves and checks the image, so each pull_request run proves the path a
+# push takes, short of the tags themselves.
 #
 # The riftal runners share one docker daemon, so another run can rebuild the
 # bare tag at any time. The image is named by the ID the build reported, never
@@ -54,10 +56,13 @@ if [ "$EVENT" != push ] || [ "$REF" != refs/heads/riftal ]; then
   exit 0
 fi
 
-docker tag "$ID" "$IMAGE:$SHA"
-TAGGED="$(docker image inspect --format '{{.Id}}' "$IMAGE:$SHA")"
-if [ "$TAGGED" != "$ID" ]; then
-  echo "::error::$IMAGE:$SHA resolves to $TAGGED, not the $ID this run built"
-  exit 1
-fi
-echo "tagged $ID as $IMAGE:$SHA"
+# The sha tag first, so the bare tag never names a build riftal-infra cannot pin.
+for TAG in "$SHA" latest; do
+  docker tag "$ID" "$IMAGE:$TAG"
+  TAGGED="$(docker image inspect --format '{{.Id}}' "$IMAGE:$TAG")"
+  if [ "$TAGGED" != "$ID" ]; then
+    echo "::error::$IMAGE:$TAG resolves to $TAGGED, not the $ID this run built"
+    exit 1
+  fi
+  echo "tagged $ID as $IMAGE:$TAG"
+done

@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 # Runs tag-image-sha.sh against a stub `docker`, so a push to riftal is proven
-# to tag and every other run, or an image not built from this commit, is
-# proven not to. CI's pull_request runs never reach the tag itself. The last
-# case fails if docker-image-ci.yml stops labelling the build or stops calling
-# the script once the smoke steps have passed.
+# to tag the sha and the bare name, and every other run, or an image not built
+# from this commit, is proven to tag neither. CI's pull_request runs never
+# reach the tags themselves. The last case fails if docker-image-ci.yml stops
+# labelling the build or stops calling the script once the smoke steps have
+# passed.
 set -uo pipefail
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
@@ -37,18 +38,24 @@ esac
 EOF
 chmod +x "$DIR/bin/docker"
 
-# expect <exit status> <case name> <text the output must contain> <tags: yes|no> [VAR=value...]
-# ARG, when set, replaces the image ID the workflow passes.
+# expect <exit status> <case name> <text the output must contain> <tags: yes|sha|no> [VAR=value...]
+# yes is the sha tag then the bare name, sha is the sha tag alone, no is no
+# docker tag call at all. ARG, when set, replaces the image ID the workflow passes.
 expect() {
-  local want="$1" name="$2" text="$3" tags="$4" got=0
+  local want="$1" name="$2" text="$3" tags="$4" got=0 made
   shift 4
   mkdir "$DIR/$name"
   : > "$DIR/$name/calls"
   env PATH="$DIR/bin:$PATH" STUB_CALLS="$DIR/$name/calls" STUB_ID="$ID" \
     STUB_REVISION="$SHA" GITHUB_EVENT_NAME=push GITHUB_REF=refs/heads/riftal GITHUB_SHA="$SHA" "$@" \
     bash "$SCRIPT" local-pocketmine-mp "${ARG-$ID}" > "$DIR/$name/out" 2>&1 || got=$?
-  local tagged=no
-  grep -qxF "tag $ID local-pocketmine-mp:$SHA" "$DIR/$name/calls" && tagged=yes
+  mapfile -t made < <(sed -n 's/^tag //p' "$DIR/$name/calls")
+  local tagged=other
+  case "${made[*]}" in
+    "$ID local-pocketmine-mp:$SHA $ID local-pocketmine-mp:latest") tagged=yes ;;
+    "$ID local-pocketmine-mp:$SHA") tagged=sha ;;
+    "") tagged=no ;;
+  esac
   if [ "$got" != "$want" ]; then
     echo "FAIL $name: exit $got, expected $want"
   elif [ "$tagged" != "$tags" ]; then
@@ -65,7 +72,7 @@ expect() {
   cat "$DIR/$name/out" "$DIR/$name/calls"
 }
 
-expect 0 push-to-riftal "tagged $ID as local-pocketmine-mp:$SHA" yes
+expect 0 push-to-riftal "tagged $ID as local-pocketmine-mp:latest" yes
 expect 0 pull-request "only a push to riftal is tagged" no GITHUB_EVENT_NAME=pull_request GITHUB_REF=refs/pull/7/merge
 expect 0 pull-request-from-riftal "only a push to riftal is tagged" no GITHUB_EVENT_NAME=pull_request
 expect 0 dispatch-on-riftal "only a push to riftal is tagged" no GITHUB_EVENT_NAME=workflow_dispatch
@@ -80,7 +87,7 @@ ARG='' expect 1 empty-id "is not a sha256 image ID" no
 ARG=sha256:feedface expect 1 short-id "is not a sha256 image ID" no
 expect 1 short-sha "is not a full commit sha" no GITHUB_SHA=0123456
 expect 1 no-sha "is not a full commit sha" no GITHUB_SHA=
-expect 1 tag-lands-elsewhere "not the $ID this run built" yes STUB_TAG_ID=sha256:0000
+expect 1 tag-lands-elsewhere "not the $ID this run built" sha STUB_TAG_ID=sha256:0000
 
 got=0
 bash "$SCRIPT" local-pocketmine-mp > "$DIR/one-arg.out" 2>&1 || got=$?

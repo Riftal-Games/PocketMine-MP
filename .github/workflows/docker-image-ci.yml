@@ -77,7 +77,12 @@ jobs:
         push: false
         load: true
         file: ${{ github.workspace }}/docker/Dockerfile
-        tags: local-pocketmine-mp
+        # Every rig and bot-proofs boot the bare local-pocketmine-mp off this
+        # one daemon, so a pull request's build that took that name would put
+        # them all on unmerged code (#274). Only tag-image-sha.sh moves it, on
+        # a push to riftal that passed every smoke step. A pull request's build
+        # is named for its number, so a rig can still be pointed at it by hand.
+        tags: local-pocketmine-mp:${{ github.event.pull_request.number && format('pr-{0}', github.event.pull_request.number) || format('run-{0}', github.run_id) }}
         labels: |
           org.opencontainers.image.revision=${{ github.sha }}
         build-args: |
@@ -93,7 +98,7 @@ jobs:
       run: docker buildx rm "${{ steps.buildx.outputs.name }}" > /dev/null 2>&1 || true
 
     # The riftal runners share one docker daemon, so another run can rebuild
-    # the bare tag between this build and any step below (#164). Every later
+    # this build's tag between this build and any step below (#164). Every later
     # step runs the image by the ID this build reported, never by the tag,
     # and check-pinned-image.sh fails the checks step if one stops doing so.
     - name: Pin the image this run built
@@ -251,8 +256,9 @@ jobs:
         .github/workflows/crash-boot-smoke.sh "$IMAGE_ID" "pm-crash-smoke-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" ./docker/testsuite/crash-on-enable
 
     # Last, so only a build that passed every smoke step above gets a sha tag
-    # riftal-infra can pin. The script tags only on a push to riftal.
-    - name: Tag the image with its commit sha
+    # riftal-infra can pin and the bare tag every rig boots. The script tags
+    # only on a push to riftal.
+    - name: Tag the image with its commit sha and as latest
       timeout-minutes: 2
       shell: bash
       run: bash .github/workflows/tag-image-sha.sh local-pocketmine-mp "$IMAGE_ID"
