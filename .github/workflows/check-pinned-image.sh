@@ -23,6 +23,13 @@
 # docker, compose, docker-compose or buildx and the verb (#187, #219). A push
 # this list does not name, by another tool or another spelling, is not seen.
 #
+# The build's own tags: line may name the bare tag, or local-pocketmine-mp:latest,
+# only when every runs-on: in the file is a GitHub-hosted ubuntu image. Every
+# rig and bot-proofs boot that name off the riftal runners' one daemon, so a
+# pull request build tagged with it puts them all on unmerged code (#274).
+# There only tag-image-sha.sh moves it, on a push to riftal. Any other runs-on:
+# is taken to be that daemon.
+#
 # Usage: check-pinned-image.sh <workflow file>
 set -uo pipefail
 
@@ -56,6 +63,8 @@ CRASH=0
 TAGS=0
 RETAGS=0
 PUSHES=0
+HOSTED=
+BARE_BUILD=
 
 fail() {
   echo "::error file=$FILE,line=$1::$2"
@@ -112,9 +121,23 @@ while IFS=$'\t' read -r NUM CODE; do
   if [ -n "$KIND" ] && [[ "$CODE" != *"$PINNED"* ]]; then
     fail "$NUM" "this $KIND step does not name the image by $PINNED"
   fi
+  if [[ "$CODE" =~ ^[[:space:]]*runs-on: ]]; then
+    if [[ "$CODE" =~ ^[[:space:]]*runs-on:[[:space:]]*ubuntu-[0-9a-z.]+[[:space:]]*$ ]]; then
+      HOSTED="${HOSTED:-1}"
+    else
+      HOSTED=0
+    fi
+  fi
   REST="${CODE//"$TAG_CALL"/}"
-  if [[ "$REST" == *local-pocketmine-mp* ]] && ! [[ "$CODE" =~ ^[[:space:]]*tags:[[:space:]]*local-pocketmine-mp[[:space:]]*$ ]]; then
-    fail "$NUM" "names the bare tag local-pocketmine-mp, which another run can rebuild; use $PINNED"
+  if [[ "$REST" == *local-pocketmine-mp* ]]; then
+    if ! [[ "$CODE" =~ ^[[:space:]]*tags:[[:space:]]*local-pocketmine-mp(:(.*))?$ ]]; then
+      fail "$NUM" "names the bare tag local-pocketmine-mp, which another run can rebuild; use $PINNED"
+    else
+      SUFFIX="${BASH_REMATCH[2]}"
+      if [[ "$SUFFIX" =~ ^[[:space:]]*$ ]] || [[ "$SUFFIX" =~ latest|local-pocketmine-mp ]]; then
+        BARE_BUILD="$NUM"
+      fi
+    fi
   fi
 done < <(awk '
   {
@@ -133,6 +156,9 @@ done < <(awk '
   }
 ' "$FILE")
 
+if [ -n "$BARE_BUILD" ] && [ "$HOSTED" != 1 ]; then
+  fail "$BARE_BUILD" "the build tags the bare local-pocketmine-mp on the shared riftal daemon, so a pull request run moves the image every rig boots (#274); tag it local-pocketmine-mp:<pr or run> and leave the bare tag to tag-image-sha.sh"
+fi
 if [ "$PINS" = 0 ]; then
   fail 1 "no step reads steps.build.outputs.imageid, so nothing pins the image this run built"
 fi
