@@ -21,6 +21,7 @@ While the packages are still on pmmp-updater's `bedrock-<version>` branch, move 
 ```
 git -C deps/pmmp-updater fetch origin bedrock-<version>
 git -C deps/pmmp-updater checkout FETCH_HEAD
+git add deps/pmmp-updater
 ```
 
 Then update `composer.json`:

@@ -103,8 +103,11 @@ Locally the container CLI is `wslc`, which is what Nasir's Windows machine has. 
 git submodule update --init --checkout deps/pmmp-updater
 git -C deps/pmmp-updater config core.autocrlf false
 git -C deps/pmmp-updater config core.eol lf
-git -C deps/pmmp-updater checkout -- packages
+git -C deps/pmmp-updater rm -r -q --cached packages
+git -C deps/pmmp-updater reset -q --hard
 ```
+
+The last two commands rebuild the index, because `checkout` alone leaves files whose index entry looks clean in the CRLF form the first checkout wrote.
 
 In CI the `pmmp-updater` action (`.github/actions/pmmp-updater`) checks out the recorded commit with the `PMMP_UPDATER_READ_TOKEN` secret, before every `composer install` and image build.
 
