@@ -103,6 +103,11 @@ jobs:
           mkdir ./docker/test_data
           sudo chown -R 1000:1000 ./docker/testsuite ./docker/test_data
 
+      - name: Check out the pmmp-updater packages
+        uses: ./.github/actions/pmmp-updater
+        with:
+          token: ${{ secrets.PMMP_UPDATER_READ_TOKEN }}
+
       # Built once, loaded into the local daemon, and never rebuilt again in this
       # job. Every tag pushed below is `docker push` of this same image ID under a
       # different name, not a fresh `docker build`. A rebuild between test and push

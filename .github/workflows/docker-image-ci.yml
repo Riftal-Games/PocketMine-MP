@@ -63,6 +63,11 @@ jobs:
     - name: Create data directories
       run: mkdir ./docker/test_data
 
+    - name: Check out the pmmp-updater packages
+      uses: ./.github/actions/pmmp-updater
+      with:
+        token: ${{ secrets.PMMP_UPDATER_READ_TOKEN }}
+
     # No step timeout survived a wedge for hours at the job's 360-minute
     # default (issue #79). 55 minutes leaves headroom over the documented
     # 20-40 minute real build time while still failing loud well inside an

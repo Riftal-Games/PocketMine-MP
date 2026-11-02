@@ -7,3 +7,7 @@
 [submodule "examples/plugins/ExamplePlugin"]
 	path = examples/plugins/ExamplePlugin
 	url = https://github.com/pmmp/ExamplePlugin.git
+[submodule "deps/pmmp-updater"]
+	path = deps/pmmp-updater
+	url = https://github.com/Riftal-Games/pmmp-updater.git
+	update = none
