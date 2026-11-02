@@ -113,6 +113,11 @@ jobs:
       # 55 minutes matches docker-image-ci.yml: headroom over the documented
       # 20-40 minute real build time, while a wedged build fails loud well inside
       # an hour instead of holding the runner to the job's 360-minute default.
+      - name: Check out the pmmp-updater packages
+        uses: ./.github/actions/pmmp-updater
+        with:
+          token: ${{ secrets.PMMP_UPDATER_READ_TOKEN }}
+
       - name: Build the image once, locally
         id: build
         timeout-minutes: 55

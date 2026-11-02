@@ -1,0 +1,31 @@
+name: pmmp-updater packages
+description: >-
+  Checks out the Riftal-Games/pmmp-updater commit that this tree's deps/pmmp-updater
+  submodule records. Composer resolves the four Bedrock protocol packages from
+  deps/pmmp-updater/packages by path. The submodule is marked update = none in
+  .gitmodules, so `submodules: true` checkouts skip it and only this action, holding a
+  token that can read the private repository, fetches it.
+inputs:
+  token:
+    description: A token with read access to Riftal-Games/pmmp-updater.
+    required: true
+runs:
+  using: composite
+  steps:
+    - id: ref
+      shell: bash
+      run: |
+        sha="$(git ls-tree HEAD deps/pmmp-updater | awk '$2 == "commit" { print $3 }')"
+        if [ -z "$sha" ]; then
+          echo "::error::deps/pmmp-updater is not a submodule in this commit"
+          exit 1
+        fi
+        echo "sha=$sha" >> "$GITHUB_OUTPUT"
+
+    - uses: actions/checkout@v7
+      with:
+        repository: Riftal-Games/pmmp-updater
+        ref: ${{ steps.ref.outputs.sha }}
+        path: deps/pmmp-updater
+        token: ${{ inputs.token }}
+        persist-credentials: false

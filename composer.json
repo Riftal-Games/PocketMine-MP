@@ -4,6 +4,48 @@
    "type": "project",
    "homepage": "https://pmmp.io",
    "license": "LGPL-3.0",
+   "repositories": [
+      {
+         "type": "path",
+         "url": "deps/pmmp-updater/packages/bedrock-protocol",
+         "options": {
+            "symlink": false,
+            "versions": {
+               "axolotl-pm/bedrock-protocol": "64.0.0+bedrock-1.26.60"
+            }
+         }
+      },
+      {
+         "type": "path",
+         "url": "deps/pmmp-updater/packages/bedrock-data",
+         "options": {
+            "symlink": false,
+            "versions": {
+               "axolotl-pm/bedrock-data": "6.10.0+bedrock-1.26.60"
+            }
+         }
+      },
+      {
+         "type": "path",
+         "url": "deps/pmmp-updater/packages/bedrock-block-upgrade-schema",
+         "options": {
+            "symlink": false,
+            "versions": {
+               "axolotl-pm/bedrock-block-upgrade-schema": "5.5.0"
+            }
+         }
+      },
+      {
+         "type": "path",
+         "url": "deps/pmmp-updater/packages/bedrock-item-upgrade-schema",
+         "options": {
+            "symlink": false,
+            "versions": {
+               "axolotl-pm/bedrock-item-upgrade-schema": "1.20.0"
+            }
+         }
+      }
+   ],
    "require": {
       "php": "^8.1",
       "php-64bit": "*",

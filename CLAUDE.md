@@ -67,19 +67,21 @@ Verified 2026-09-27 by reading `ProtocolInfo.php` at each ref in `axolotl-pm/Bed
 | 1.26.44 | 2168 | upstream 5.46.0 and 5.46.1, protocol lib 60.0.0 |
 | 1.26.45 | 2169 | upstream 5.47.0 carried in 5.48.0, protocol lib 61.0.0 |
 | 1.26.50 | 2193 | upstream 5.49.1, protocol lib 62.0.0 |
-| 1.26.60 | 2225 | this build, `riftal`, upstream 5.51.0, protocol lib 64.0.0 |
+| 1.26.60 | 2225 | this build, `riftal`, upstream 5.51.0, protocol lib 64.0.0, the last version taken from upstream |
 
 PMMP's final release 5.44.3 was Bedrock 1.26.30, protocol 1001.
 
 2168 to 2169 is the first break a client can feel. A 2169 client is refused at `InitialConnection-13` by a 2168 server, which is what happened to Nasir on 2026-09-13 and what moved this fork to 26.45. 26.45 rolled out per platform, so serving 2169 shuts out anyone whose platform is still on 26.44 until it updates. Nasir made that call; see `../docs/decision-log.md`.
 
-Confirm the live number before acting on it. Read `CURRENT_PROTOCOL` and `MINECRAFT_VERSION_NETWORK` from `vendor/axolotl-pm/bedrock-protocol/src/ProtocolInfo.php` for what this build actually speaks. `vendor/` is produced inside the build container, so on a fresh checkout it does not exist on the host and the pinned `axolotl-pm/bedrock-protocol` version in `composer.json` is the fallback source of truth.
+Confirm the live number before acting on it. Read `CURRENT_PROTOCOL` and `MINECRAFT_VERSION_NETWORK` from `deps/pmmp-updater/packages/bedrock-protocol/src/ProtocolInfo.php`, the exact source this build installs, once the submodule is checked out (see Build and test).
+
+From 1.26.70 on, the Bedrock protocol libraries come from `Riftal-Games/pmmp-updater`, not from upstream `axolotl-pm` (Nasir, 2026-11-01, `../docs/decision-log.md`). They keep their `axolotl-pm/*` package names, so `src/` and the vendor paths are unchanged.
 
 We support a single protocol version at a time. There is no multi-version compatibility layer and we are not adding one. The accepted cost is 1 to 3 days of downtime per Bedrock minor release.
 
 ## Workflow
 
-- New Bedrock version: run `/protocol-update`. Always check `git fetch upstream && git log upstream/stable --oneline` first, because if upstream already did the work, this is a rebase and not an implementation.
+- New Bedrock version: the work runs in `pmmp-updater` through its `/protocol-update`, starting at Mojang's first preview. The core changes it needs land here on `bedrock-<version>`, through the steward, and the submodule moves to pmmp-updater's `v<version>` tag. Bring a version in by merge, never rebase.
 - Before tagging: run `/diff-audit`.
 - Protocol updates are priority one on this project. They preempt everything else.
 
@@ -95,12 +97,24 @@ The build image is the artifact. Every instance in production runs this same ima
 
 Locally the container CLI is `wslc`, which is what Nasir's Windows machine has. Nothing in the Dockerfile may depend on it, because production does not have it.
 
+`composer.json` resolves the four Bedrock protocol packages by path from `deps/pmmp-updater/packages/`, a submodule of the private `Riftal-Games/pmmp-updater`. It is marked `update = none`, so `git submodule update --init` skips it. Fetch it explicitly, and keep its bytes exact on Windows:
+
+```
+git submodule update --init --checkout deps/pmmp-updater
+git -C deps/pmmp-updater config core.autocrlf false
+git -C deps/pmmp-updater config core.eol lf
+git -C deps/pmmp-updater checkout -- packages
+```
+
+In CI the `pmmp-updater` action (`.github/actions/pmmp-updater`) checks out the recorded commit with the `PMMP_UPDATER_READ_TOKEN` secret, before every `composer install` and image build.
+
 Run `composer install`, `vendor/bin/phpstan analyze`, and `vendor/bin/phpunit tests/phpunit` inside a container built from the PHP stage, not on a host.
 
 Boot test before every tag: start the container, join with a real Bedrock client on the target version through the proxy, confirm chunk load and block break, stop cleanly.
 
 ### Known gaps
 
+- CI cannot fetch `deps/pmmp-updater` until the `PMMP_UPDATER_READ_TOKEN` secret exists. It is Nasir's to create, riftal-pm#1885. Until then every job that runs composer or builds the image fails at that step.
 - `build/php` is a submodule and a fresh clone leaves it empty. The first build stage copies `build/php/compile.sh`, so the image build fails immediately until `git submodule update --init --recursive` is run.
 - `build/php` is pinned to a commit of the archived `pmmp/php-build-scripts`. It builds the extension versions `axolotl-pm` 5.49.1 expects; 5.45.0 through 5.49.1 left the pin alone.
 - Four shell scripts show as modified, mode 100755 to 100644, from a Windows checkout dropping the exec bit. `git config core.filemode false` clears it.
