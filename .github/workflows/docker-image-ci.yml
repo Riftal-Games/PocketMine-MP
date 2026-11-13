@@ -29,8 +29,9 @@ jobs:
         php: false
 
     # Stub and fixture driven, no image needed, so a broken check fails in
-    # seconds instead of after the 20-40 minute build it would otherwise
-    # silently misjudge. docker-image-publish.yml runs the same script.
+    # seconds instead of after an image build it would otherwise silently
+    # misjudge, one that took 33 minutes to load the image from a cold cache
+    # in run 43516750168. docker-image-publish.yml runs the same script.
     - name: Self-test the checking scripts and check the workflows
       shell: bash
       run: bash .github/workflows/self-test-checks.sh
@@ -64,12 +65,15 @@ jobs:
       run: mkdir ./docker/test_data
 
     # No step timeout survived a wedge for hours at the job's 360-minute
-    # default (issue #79). 55 minutes leaves headroom over the documented
-    # 20-40 minute real build time while still failing loud well inside an
-    # hour.
+    # default (issue #79). A build that compiles build/php from scratch, with
+    # nothing of it in the gha cache, took 33 minutes to load the image and
+    # was still exporting its cache 55 minutes in (run 43516750168). A push
+    # to riftal cannot read a pull request's cache, so it pays that cost
+    # again. 120 minutes covers both while still failing loud long before the
+    # job default.
     - name: Build image for tag
       id: build
-      timeout-minutes: 55
+      timeout-minutes: 120
       uses: docker/build-push-action@v7.4.0
       with:
         builder: ${{ steps.buildx.outputs.name }}
@@ -192,6 +196,8 @@ jobs:
         echo stop | docker run --rm -i -e POCKETMINE_ARGS="--settings.enable-dev-builds=1 --auto-report.enabled=0 --auto-updater.enabled=0" "$IMAGE_ID" | tee "$LOG" || STATUS=$?
         .github/workflows/check-no-crash-upload.sh "$LOG"
         [ "$STATUS" = 0 ] || exit "$STATUS"
+        WEBRTC="$(docker run --rm "$IMAGE_ID" php -r 'echo phpversion("webrtc");')"
+        .github/workflows/check-nethernet-available.sh "$WEBRTC" "$LOG"
 
     - name: Test if it loads plugins
       timeout-minutes: 10
