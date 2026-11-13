@@ -192,6 +192,8 @@ jobs:
         echo stop | docker run --rm -i -e POCKETMINE_ARGS="--settings.enable-dev-builds=1 --auto-report.enabled=0 --auto-updater.enabled=0" "$IMAGE_ID" | tee "$LOG" || STATUS=$?
         .github/workflows/check-no-crash-upload.sh "$LOG"
         [ "$STATUS" = 0 ] || exit "$STATUS"
+        WEBRTC="$(docker run --rm "$IMAGE_ID" php -r 'echo phpversion("webrtc");')"
+        .github/workflows/check-nethernet-available.sh "$WEBRTC" "$LOG"
 
     - name: Test if it loads plugins
       timeout-minutes: 10
