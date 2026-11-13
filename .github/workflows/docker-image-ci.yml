@@ -64,12 +64,15 @@ jobs:
       run: mkdir ./docker/test_data
 
     # No step timeout survived a wedge for hours at the job's 360-minute
-    # default (issue #79). 55 minutes leaves headroom over the documented
-    # 20-40 minute real build time while still failing loud well inside an
-    # hour.
+    # default (issue #79). A build that compiles build/php from scratch, with
+    # nothing of it in the gha cache, took 33 minutes to load the image and
+    # was still exporting its cache when run 43516750168 timed out at 55
+    # minutes. A push to riftal cannot read a pull request's cache, so it
+    # pays that cost again. 120 minutes covers both while still failing loud
+    # long before the job default.
     - name: Build image for tag
       id: build
-      timeout-minutes: 55
+      timeout-minutes: 120
       uses: docker/build-push-action@v7.4.0
       with:
         builder: ${{ steps.buildx.outputs.name }}
