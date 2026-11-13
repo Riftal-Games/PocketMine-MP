@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# Fails unless the image's PHP reports ext-webrtc at 0.3.x and the server's
-# boot log has no line saying the nethernet transport was skipped.
+# Fails unless the image's PHP reports ext-webrtc at 0.3.1 or a later 0.3
+# patch and the server's boot log has no line saying the nethernet transport
+# was skipped.
 # NetherNetTransport takes webrtc >= 0.3.1 and < 0.4.0. Without the extension
 # the server still reaches Done and exits 0 on RakNet alone, logging only a
 # warning, so every other boot step passes on an image no NetherNet client
@@ -21,10 +22,10 @@ if [ ! -f "$LOG" ]; then
 fi
 
 FAILED=0
-if [[ "$VERSION" =~ ^0\.3\.[0-9]+$ ]]; then
+if [[ "$VERSION" =~ ^0\.3\.[1-9][0-9]*$ ]]; then
   echo "ext-webrtc $VERSION is loaded"
 else
-  echo "::error::the image's PHP reports ext-webrtc '$VERSION', expected 0.3.x"
+  echo "::error::the image's PHP reports ext-webrtc '$VERSION', expected >= 0.3.1 and < 0.4.0"
   FAILED=1
 fi
 

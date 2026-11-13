@@ -29,8 +29,9 @@ jobs:
         php: false
 
     # Stub and fixture driven, no image needed, so a broken check fails in
-    # seconds instead of after the 20-40 minute build it would otherwise
-    # silently misjudge. docker-image-publish.yml runs the same script.
+    # seconds instead of after an image build it would otherwise silently
+    # misjudge, one that took 33 minutes to load the image from a cold cache
+    # in run 43516750168. docker-image-publish.yml runs the same script.
     - name: Self-test the checking scripts and check the workflows
       shell: bash
       run: bash .github/workflows/self-test-checks.sh
@@ -66,10 +67,10 @@ jobs:
     # No step timeout survived a wedge for hours at the job's 360-minute
     # default (issue #79). A build that compiles build/php from scratch, with
     # nothing of it in the gha cache, took 33 minutes to load the image and
-    # was still exporting its cache when run 43516750168 timed out at 55
-    # minutes. A push to riftal cannot read a pull request's cache, so it
-    # pays that cost again. 120 minutes covers both while still failing loud
-    # long before the job default.
+    # was still exporting its cache 55 minutes in (run 43516750168). A push
+    # to riftal cannot read a pull request's cache, so it pays that cost
+    # again. 120 minutes covers both while still failing loud long before the
+    # job default.
     - name: Build image for tag
       id: build
       timeout-minutes: 120
