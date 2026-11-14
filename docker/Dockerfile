@@ -3,7 +3,7 @@
 # and a refresh changes the digest on all three FROM lines and nothing else.
 
 #PHP is built in a separate image from PM, so that we don't need to rebuild the entire Dockerfile whenever one src file changes
-FROM ubuntu:24.04@sha256:68ee22004a9109b44973313b02ff7b1de250f1de0f5ecb628d73f579aaff33ac AS build-php
+FROM ubuntu:24.04@sha256:2198e4c65076e9cb0b3d695219df667c0e3b0072da64ca3c2648aca17dcecaf5 AS build-php
 ARG COMPILE_SH_ARGS="-f -g -P5"
 
 RUN apt-get update && apt-get install --no-install-recommends -y curl ca-certificates build-essential m4 gzip bzip2 bison git cmake autoconf automake pkg-config libtool libtool-bin re2c
@@ -13,7 +13,7 @@ COPY --chmod=700 ./build/php/compile.sh /opt/pocketmine
 WORKDIR /opt/pocketmine
 RUN ./compile.sh -t linux64 -j ${THREADS:-$(grep -E ^processor /proc/cpuinfo | wc -l)} ${COMPILE_SH_ARGS}
 
-FROM ubuntu:24.04@sha256:68ee22004a9109b44973313b02ff7b1de250f1de0f5ecb628d73f579aaff33ac AS build-pocketmine
+FROM ubuntu:24.04@sha256:2198e4c65076e9cb0b3d695219df667c0e3b0072da64ca3c2648aca17dcecaf5 AS build-pocketmine
 ARG GIT_HASH=""
 RUN test ! -z ${GIT_HASH} || (echo "Missing build-arg GIT_HASH" && false)
 
@@ -39,7 +39,7 @@ RUN php -dphar.readonly=0 ./build/server-phar.php --git ${GIT_HASH}
 # Just to make sure the build script didn't false-positive-exit
 RUN test -f /opt/pocketmine/repo/PocketMine-MP.phar
 
-FROM ubuntu:24.04@sha256:68ee22004a9109b44973313b02ff7b1de250f1de0f5ecb628d73f579aaff33ac
+FROM ubuntu:24.04@sha256:2198e4c65076e9cb0b3d695219df667c0e3b0072da64ca3c2648aca17dcecaf5
 LABEL maintainer="PMMP Team <team@pmmp.io>"
 
 RUN apt-get update && apt-get install --no-install-recommends -y ca-certificates wget tini
