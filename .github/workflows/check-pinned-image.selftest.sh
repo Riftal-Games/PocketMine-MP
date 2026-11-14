@@ -79,8 +79,8 @@ done
 fixture minimal ''
 expect 0 minimal "$DIR/minimal.yml"
 
-# CI's pull_request runs build on the daemon every rig boots from, so its
-# build must never take the bare name (#274).
+# CI builds on a riftal runner, whose sidecar daemon holds the pinned
+# local-pocketmine-mp:latest, so its build must never take the bare name (#274).
 CI="$HERE/docker-image-ci.yml"
 for PAIR in bare=local-pocketmine-mp latest=local-pocketmine-mp:latest \
   scoped-and-bare=local-pocketmine-mp:pr-7,local-pocketmine-mp; do
@@ -95,8 +95,8 @@ expect 1 bare-build-tag-self-hosted "$DIR/bare-build-tag-self-hosted.yml"
 sed 's|runs-on: .*|runs-on: ubuntu-22.04|' "$DIR/bare-build-tag-self-hosted.yml" > "$DIR/bare-build-tag-hosted.yml"
 expect 0 bare-build-tag-hosted "$DIR/bare-build-tag-hosted.yml"
 
-# One job on the shared daemon is enough to refuse the bare tag, even when a
-# later job runs on a hosted runner.
+# One job on a self-hosted runner is enough to refuse the bare tag, even when
+# a later job runs on a hosted runner.
 printf '  other:\n    runs-on: ubuntu-22.04\n' | cat "$DIR/bare-build-tag-self-hosted.yml" - > "$DIR/bare-build-tag-self-hosted-and-hosted.yml"
 expect 1 bare-build-tag-self-hosted-and-hosted "$DIR/bare-build-tag-self-hosted-and-hosted.yml"
 

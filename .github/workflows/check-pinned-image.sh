@@ -3,9 +3,9 @@
 # names it by "$IMAGE_ID", the ID the build step reported, and nothing names
 # the bare tag but the build's own tags: line and the sha tag's repository.
 # Run on docker-image-ci.yml and docker-image-publish.yml.
-# The riftal runners share one docker daemon, so the bare tag is whatever
-# image any run built last, and a smoke verdict on it may be a verdict on
-# someone else's build (#164).
+# A tag is a name on the runner's sidecar daemon that outlives the run, and
+# later runs and the conductor's sync-images write tags there too, so a smoke
+# verdict on a tag may be a verdict on another build (#164).
 #
 # Comments are skipped, whole-line and trailing, so a commented-out line can
 # neither satisfy the check nor trip it. Continued lines are joined first.
@@ -24,11 +24,11 @@
 # this list does not name, by another tool or another spelling, is not seen.
 #
 # The build's own tags: line may name the bare tag, or local-pocketmine-mp:latest,
-# only when every runs-on: in the file is a GitHub-hosted ubuntu image. Every
-# rig and bot-proofs boot that name off the riftal runners' one daemon, so a
-# pull request build tagged with it puts them all on unmerged code (#274).
-# There only tag-image-sha.sh moves it, on a push to riftal. Any other runs-on:
-# is taken to be that daemon.
+# only when every runs-on: in the file is a GitHub-hosted ubuntu image. On a
+# riftal runner local-pocketmine-mp:latest is a pinned tag in its sidecar
+# daemon, set by the conductor's set-pins and sync-images, so a build tagged
+# with it moves a pin to unmerged code (#274). Any other runs-on: is taken to
+# be such a runner.
 #
 # Usage: check-pinned-image.sh <workflow file>
 set -uo pipefail

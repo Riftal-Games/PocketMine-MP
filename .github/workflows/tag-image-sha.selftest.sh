@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 # Runs tag-image-sha.sh against a stub `docker`, so a push to riftal is proven
-# to tag the sha and the bare name, and every other run, or an image not built
-# from this commit, is proven to tag neither. CI's pull_request runs never
-# reach the tags themselves. The last case fails if docker-image-ci.yml stops
-# labelling the build or stops calling the script once the smoke steps have
-# passed.
+# to add the sha tag alone and never to move one already there, and every
+# other run, or an image not built from this commit, is proven to tag nothing.
+# CI's pull_request runs never reach the tag itself. The last case fails if
+# docker-image-ci.yml stops labelling the build or stops calling the script
+# once the smoke steps have passed.
 set -uo pipefail
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
@@ -29,7 +29,23 @@ case "$1 $2" in
     fi
     case "$FORMAT" in
       *revision*) echo "${STUB_REVISION:-}" ;;
-      *) [ "$REF" = "$STUB_ID" ] && echo "$STUB_ID" || echo "${STUB_TAG_ID:-$STUB_ID}" ;;
+      *)
+        # The sha tag resolves to STUB_TAG_ID once tagged, and to STUB_HELD,
+        # or to no image at all, before.
+        if [ "$REF" = "$STUB_ID" ]; then
+          echo "$STUB_ID"
+        elif grep -q '^tag ' "$STUB_CALLS"; then
+          echo "${STUB_TAG_ID:-$STUB_ID}"
+        elif [ -n "${STUB_LOOKUP_ERROR:-}" ]; then
+          echo "Cannot connect to the Docker daemon" >&2
+          exit 1
+        elif [ -n "${STUB_HELD:-}" ]; then
+          echo "$STUB_HELD"
+        else
+          echo "Error response from daemon: No such image: $REF" >&2
+          exit 1
+        fi
+        ;;
     esac
     ;;
   "tag "*) ;;
@@ -38,9 +54,9 @@ esac
 EOF
 chmod +x "$DIR/bin/docker"
 
-# expect <exit status> <case name> <text the output must contain> <tags: yes|sha|no> [VAR=value...]
-# yes is the sha tag then the bare name, sha is the sha tag alone, no is no
-# docker tag call at all. ARG, when set, replaces the image ID the workflow passes.
+# expect <exit status> <case name> <text the output must contain> <tags: sha|no> [VAR=value...]
+# sha is the sha tag alone, no is no docker tag call at all. ARG, when set,
+# replaces the image ID the workflow passes.
 expect() {
   local want="$1" name="$2" text="$3" tags="$4" got=0 made
   shift 4
@@ -52,7 +68,6 @@ expect() {
   mapfile -t made < <(sed -n 's/^tag //p' "$DIR/$name/calls")
   local tagged=other
   case "${made[*]}" in
-    "$ID local-pocketmine-mp:$SHA $ID local-pocketmine-mp:latest") tagged=yes ;;
     "$ID local-pocketmine-mp:$SHA") tagged=sha ;;
     "") tagged=no ;;
   esac
@@ -72,7 +87,10 @@ expect() {
   cat "$DIR/$name/out" "$DIR/$name/calls"
 }
 
-expect 0 push-to-riftal "tagged $ID as local-pocketmine-mp:latest" yes
+expect 0 push-to-riftal "tagged $ID as local-pocketmine-mp:$SHA" sha
+expect 0 sha-tag-at-this-id "already names $ID, so it is left as it is" no STUB_HELD="$ID"
+expect 0 sha-tag-at-other-id "::warning::local-pocketmine-mp:$SHA already names sha256:0000, not the $ID" no STUB_HELD=sha256:0000
+expect 1 sha-tag-lookup-fails "could not look up local-pocketmine-mp:$SHA" no STUB_LOOKUP_ERROR=1
 expect 0 pull-request "only a push to riftal is tagged" no GITHUB_EVENT_NAME=pull_request GITHUB_REF=refs/pull/7/merge
 expect 0 pull-request-from-riftal "only a push to riftal is tagged" no GITHUB_EVENT_NAME=pull_request
 expect 0 dispatch-on-riftal "only a push to riftal is tagged" no GITHUB_EVENT_NAME=workflow_dispatch
