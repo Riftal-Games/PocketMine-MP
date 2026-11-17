@@ -1,16 +1,19 @@
 #!/usr/bin/env bash
-# Gives the image this run built two more tags: <repository>:<full commit sha>,
-# so riftal-infra's CI can run one exact core build and never the moving bare
-# tag (riftal-infra#363), and the bare <repository>, which every rig and
-# bot-proofs boot (#274). Only a push to riftal tags: a pull request head is
-# code no one has approved, a sha tag from one would let a pin point at it, and
-# the bare tag from one would put every rig on it. Every other run still
-# resolves and checks the image, so each pull_request run proves the path a
-# push takes, short of the tags themselves.
+# Gives the image this run built one more tag, <repository>:<full commit sha>,
+# so riftal-infra's CI can run one exact core build (riftal-infra#363). Only a
+# push to riftal tags: a pull request head is code no one has approved, and a
+# sha tag from one would let a pin point at it. Every other run still resolves
+# and checks the image, so each pull_request run proves the path a push takes,
+# short of the tag itself.
 #
-# The riftal runners share one docker daemon, so another run can rebuild the
-# bare tag at any time. The image is named by the ID the build reported, never
-# by the tag, and must carry this run's revision label, or nothing is tagged.
+# Each runner's sidecar daemon holds the pinned tags, and the conductor's
+# set-pins and sync-images own every one of them, so the sha tag is the only
+# one this adds. An existing sha tag is never moved: it may already be
+# riftal-infra's pin, and the image it names passed every smoke step in the
+# run that tagged it. One at another ID is left as it is, with a warning.
+#
+# The image is named by the ID the build reported, never by a tag, and must
+# carry this run's revision label, or nothing is tagged.
 #
 # Nothing here removes a tag. riftal-infra pins one sha tag, and only a
 # cleanup that knows which one may ever remove the others.
@@ -56,13 +59,28 @@ if [ "$EVENT" != push ] || [ "$REF" != refs/heads/riftal ]; then
   exit 0
 fi
 
-# The sha tag first, so the bare tag never names a build riftal-infra cannot pin.
-for TAG in "$SHA" latest; do
-  docker tag "$ID" "$IMAGE:$TAG"
-  TAGGED="$(docker image inspect --format '{{.Id}}' "$IMAGE:$TAG")"
-  if [ "$TAGGED" != "$ID" ]; then
-    echo "::error::$IMAGE:$TAG resolves to $TAGGED, not the $ID this run built"
-    exit 1
+TAG="$IMAGE:$SHA"
+ERR="$(mktemp)"
+trap 'rm -f "$ERR"' EXIT
+if HELD="$(docker image inspect --format '{{.Id}}' "$TAG" 2>"$ERR")"; then
+  if [ "$HELD" = "$ID" ]; then
+    echo "$TAG already names $ID, so it is left as it is"
+  else
+    echo "::warning::$TAG already names $HELD, not the $ID this run built; it is left as it is, since it may be riftal-infra's pin"
   fi
-  echo "tagged $ID as $IMAGE:$TAG"
-done
+  exit 0
+fi
+# Any lookup failure but an absent tag stops here, so a daemon error never
+# reads as a free name.
+if ! grep -qF 'No such image' "$ERR"; then
+  echo "::error::could not look up $TAG: $(cat "$ERR")"
+  exit 1
+fi
+
+docker tag "$ID" "$TAG"
+TAGGED="$(docker image inspect --format '{{.Id}}' "$TAG")"
+if [ "$TAGGED" != "$ID" ]; then
+  echo "::error::$TAG resolves to $TAGGED, not the $ID this run built"
+  exit 1
+fi
+echo "tagged $ID as $TAG"
