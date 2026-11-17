@@ -72,7 +72,7 @@ jobs:
       - name: Run ShellCheck
         uses: ludeeus/action-shellcheck@2.0.0
         with:
-          # build/php is a vendored git submodule (pmmp/php-build-scripts),
+          # build/php is a vendored git submodule (axolotl-pm/PHP-Binaries),
           # not ours to fix or annotate. tests/plugins/DevTools and
           # examples/plugins/ExamplePlugin are submodules too but carry no
           # shell scripts, so they never reach the scan either way.
