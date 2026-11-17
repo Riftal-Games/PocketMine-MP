@@ -53,6 +53,7 @@ jobs:
     if: needs.skip.outputs.skip != 'true'
     name: Check release
     uses: ./.github/workflows/draft-release-pr-check.yml
+    secrets: inherit
     permissions:
       contents: read
 
@@ -113,6 +114,11 @@ jobs:
           key: "composer-v2-cache-${{ hashFiles('./composer.lock') }}"
           restore-keys: |
             composer-v2-cache-
+
+      - name: Check out the pmmp-updater packages
+        uses: ./.github/actions/pmmp-updater
+        with:
+          token: ${{ secrets.PMMP_UPDATER_READ_TOKEN }}
 
       - name: Install Composer dependencies
         run: composer install --no-dev --prefer-dist --no-interaction --ignore-platform-reqs

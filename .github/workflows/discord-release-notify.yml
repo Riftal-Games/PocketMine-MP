@@ -36,6 +36,11 @@ jobs:
           restore-keys: |
             composer-v2-cache-
 
+      - name: Check out the pmmp-updater packages
+        uses: ./.github/actions/pmmp-updater
+        with:
+          token: ${{ secrets.PMMP_UPDATER_READ_TOKEN }}
+
       - name: Install Composer dependencies
         run: composer install --no-dev --prefer-dist --no-interaction --ignore-platform-reqs
 

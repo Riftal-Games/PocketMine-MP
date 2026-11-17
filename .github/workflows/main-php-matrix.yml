@@ -52,6 +52,11 @@ jobs:
           restore-keys: |
             composer-v2-cache-
 
+      - name: Check out the pmmp-updater packages
+        uses: ./.github/actions/pmmp-updater
+        with:
+          token: ${{ secrets.PMMP_UPDATER_READ_TOKEN }}
+
       - name: Install Composer dependencies
         run: composer install --prefer-dist --no-interaction
 
@@ -99,6 +104,11 @@ jobs:
           restore-keys: |
             composer-v2-cache-
 
+      - name: Check out the pmmp-updater packages
+        uses: ./.github/actions/pmmp-updater
+        with:
+          token: ${{ secrets.PMMP_UPDATER_READ_TOKEN }}
+
       - name: Install Composer dependencies
         run: composer install --prefer-dist --no-interaction
 
@@ -135,6 +145,11 @@ jobs:
           key: "composer-v2-cache-${{ inputs.php }}-${{ hashFiles('./composer.lock') }}"
           restore-keys: |
             composer-v2-cache-
+
+      - name: Check out the pmmp-updater packages
+        uses: ./.github/actions/pmmp-updater
+        with:
+          token: ${{ secrets.PMMP_UPDATER_READ_TOKEN }}
 
       - name: Install Composer dependencies
         run: composer install --no-dev --prefer-dist --no-interaction
@@ -186,6 +201,11 @@ jobs:
           key: "composer-v2-cache-${{ inputs.php }}-${{ hashFiles('./composer.lock') }}"
           restore-keys: |
             composer-v2-cache-
+
+      - name: Check out the pmmp-updater packages
+        uses: ./.github/actions/pmmp-updater
+        with:
+          token: ${{ secrets.PMMP_UPDATER_READ_TOKEN }}
 
       - name: Install Composer dependencies
         run: composer install --no-dev --prefer-dist --no-interaction
