@@ -29,6 +29,9 @@ COPY ./resources /opt/pocketmine/repo/resources
 COPY ./src /opt/pocketmine/repo/src
 COPY ./generated /opt/pocketmine/repo/generated
 COPY ./composer.json ./composer.lock /opt/pocketmine/repo/
+# composer.json resolves the Bedrock protocol packages from this path, so the
+# pmmp-updater submodule must be checked out before the build.
+COPY ./deps/pmmp-updater/packages /opt/pocketmine/repo/deps/pmmp-updater/packages
 
 WORKDIR /opt/pocketmine/repo
 # The build/php PHP has no ext-webrtc, so the nethernet transport stays off and
