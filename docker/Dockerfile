@@ -34,9 +34,7 @@ COPY ./composer.json ./composer.lock /opt/pocketmine/repo/
 COPY ./deps/pmmp-updater/packages /opt/pocketmine/repo/deps/pmmp-updater/packages
 
 WORKDIR /opt/pocketmine/repo
-# The build/php PHP has no ext-webrtc, so the nethernet transport stays off and
-# the server serves RakNet only.
-RUN composer install --classmap-authoritative --no-dev --prefer-dist --ignore-platform-req=ext-webrtc
+RUN composer install --classmap-authoritative --no-dev --prefer-dist
 RUN php vendor/axolotl-pm/bedrock-data/.minify_json.php
 RUN php -dphar.readonly=0 ./build/server-phar.php --git ${GIT_HASH}
 # Just to make sure the build script didn't false-positive-exit
