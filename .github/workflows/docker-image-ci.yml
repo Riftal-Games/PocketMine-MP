@@ -236,8 +236,13 @@ jobs:
     - name: Test if a crash on boot exits the container
       timeout-minutes: 5
       shell: bash
+      # Named per run, attempt, job and leg like the REACHABLE container,
+      # since a self-hosted runner shares one daemon across runs, jobs and
+      # matrix legs.
+      env:
+        LEG: ${{ strategy.job-index }}
       run: |
-        .github/workflows/crash-boot-smoke.sh "$IMAGE_ID" "pm-crash-smoke-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" ./docker/testsuite/crash-on-enable
+        .github/workflows/crash-boot-smoke.sh "$IMAGE_ID" "pm-crash-smoke-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-${GITHUB_JOB}-${LEG}" ./docker/testsuite/crash-on-enable
 
     # After every smoke step, so only a build that passed them all gets a sha
     # tag riftal-infra can pin. The script tags only on a push to riftal, and
