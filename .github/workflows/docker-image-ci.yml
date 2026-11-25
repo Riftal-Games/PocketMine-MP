@@ -236,8 +236,9 @@ jobs:
     - name: Test if a crash on boot exits the container
       timeout-minutes: 5
       shell: bash
-      # Named per run, attempt, job and leg like the REACHABLE container, since
-      # the daemon is shared with every other run, job and matrix leg.
+      # Named per run, attempt, job and leg like the REACHABLE container,
+      # since a self-hosted runner shares one daemon across runs, jobs and
+      # matrix legs.
       env:
         LEG: ${{ strategy.job-index }}
       run: |
