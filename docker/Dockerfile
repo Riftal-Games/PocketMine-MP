@@ -3,7 +3,7 @@
 # and a refresh changes the digest on all three FROM lines and nothing else.
 
 #PHP is built in a separate image from PM, so that we don't need to rebuild the entire Dockerfile whenever one src file changes
-FROM ubuntu:24.04@sha256:68ee22004a9109b44973313b02ff7b1de250f1de0f5ecb628d73f579aaff33ac AS build-php
+FROM ubuntu:24.04@sha256:562111b88caa79c71391c0c4d3c2114a7d5c35915c20561fd893cb1e07929e6b AS build-php
 ARG COMPILE_SH_ARGS="-f -g -P5"
 
 RUN apt-get update && apt-get install --no-install-recommends -y curl ca-certificates build-essential m4 gzip bzip2 bison git cmake autoconf automake pkg-config libtool libtool-bin re2c
@@ -13,7 +13,7 @@ COPY --chmod=700 ./build/php/compile.sh /opt/pocketmine
 WORKDIR /opt/pocketmine
 RUN ./compile.sh -t linux64 -j ${THREADS:-$(grep -E ^processor /proc/cpuinfo | wc -l)} ${COMPILE_SH_ARGS}
 
-FROM ubuntu:24.04@sha256:68ee22004a9109b44973313b02ff7b1de250f1de0f5ecb628d73f579aaff33ac AS build-pocketmine
+FROM ubuntu:24.04@sha256:562111b88caa79c71391c0c4d3c2114a7d5c35915c20561fd893cb1e07929e6b AS build-pocketmine
 ARG GIT_HASH=""
 RUN test ! -z ${GIT_HASH} || (echo "Missing build-arg GIT_HASH" && false)
 
@@ -34,15 +34,13 @@ COPY ./composer.json ./composer.lock /opt/pocketmine/repo/
 COPY ./deps/pmmp-updater/packages /opt/pocketmine/repo/deps/pmmp-updater/packages
 
 WORKDIR /opt/pocketmine/repo
-# The build/php PHP has no ext-webrtc, so the nethernet transport stays off and
-# the server serves RakNet only.
-RUN composer install --classmap-authoritative --no-dev --prefer-dist --ignore-platform-req=ext-webrtc
+RUN composer install --classmap-authoritative --no-dev --prefer-dist
 RUN php vendor/axolotl-pm/bedrock-data/.minify_json.php
 RUN php -dphar.readonly=0 ./build/server-phar.php --git ${GIT_HASH}
 # Just to make sure the build script didn't false-positive-exit
 RUN test -f /opt/pocketmine/repo/PocketMine-MP.phar
 
-FROM ubuntu:24.04@sha256:68ee22004a9109b44973313b02ff7b1de250f1de0f5ecb628d73f579aaff33ac
+FROM ubuntu:24.04@sha256:562111b88caa79c71391c0c4d3c2114a7d5c35915c20561fd893cb1e07929e6b
 LABEL maintainer="PMMP Team <team@pmmp.io>"
 
 RUN apt-get update && apt-get install --no-install-recommends -y ca-certificates wget tini
